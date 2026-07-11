@@ -1,0 +1,461 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Gender {
+  male
+  female
+}
+
+enum MaritalStatus {
+  single
+  married
+  divorced
+  widowed
+}
+
+enum MemberRole {
+  member
+  usher
+  leader
+  pastor
+  admin
+}
+
+enum MemberStatus {
+  active
+  inactive
+  transferred
+  deceased
+}
+
+enum Relationship {
+  spouse
+  child
+  dependent
+}
+
+enum PaymentMethod {
+  mpesa_stk
+  mpesa_c2b
+  cash
+  bank
+}
+
+enum TransactionStatus {
+  completed
+  pending
+  failed
+}
+
+enum ServiceType {
+  sunday_service
+  midweek
+  kesha
+  wedding
+  funeral
+  conference
+  special
+}
+
+enum CheckInMethod {
+  qr_code
+  manual
+  ussd
+}
+
+enum TaskStatus {
+  open
+  in_progress
+  closed
+}
+
+enum TaskTrigger {
+  new_visitor
+  absent_3_weeks
+  birthday
+  sick
+  new_baby
+  manual
+}
+
+enum PrayerStatus {
+  new
+  prayed_for
+  testified
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  action     String
+  table      String
+  recordId   Int?
+  oldValues  String?
+  newValues  String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user       User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([table])
+  @@index([createdAt])
+}
+
+model User {
+  id              Int           @id @default(autoincrement())
+  uuid            String        @default(uuid())
+  memberNo        String        @unique
+  firstName       String
+  lastName        String
+  phone           String        @unique
+  email           String?       @unique
+  idNumber        String?       @unique
+  gender          Gender
+  dob             DateTime?
+  maritalStatus   MaritalStatus @default(single)
+  physicalAddress String?
+  estate          String?
+  photoUrl        String?
+  joinDate        DateTime      @default(now())
+  baptismDate     DateTime?
+  isActive        Boolean       @default(true)
+  status          MemberStatus  @default(active)
+  role            MemberRole    @default(member)
+  passwordHash    String
+  lastLoginAt     DateTime?
+  twoFactorSecret String?
+  twoFactorEnabled Boolean      @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+
+  // Relations
+  familiesHeaded         Family[]           @relation("FamilyHead")
+  familyMembers          FamilyMember[]
+  transactions           Transaction[]      @relation("TransactionUser")
+  recordedTransactions   Transaction[]      @relation("RecordedBy")
+  pledges                Pledge[]
+  attendanceRecords      Attendance[]
+  followUpAssignments    FollowUp[]         @relation("AssignedUser")
+  followUpCreated        FollowUp[]         @relation("CreatedBy")
+  groupMemberships       GroupMember[]
+  prayerRequests         PrayerRequest[]
+  sentMessages           Message[]          @relation("SentByUser")
+  receivedMessages       Message[]          @relation("MessageRecipient")
+  auditLogs              AuditLog[]
+  announcements          Announcement[]     @relation("CreatedByUser")
+  servicesCreated        Service[]
+  groupsLed              ChurchGroup[]
+  userSessions           UserSession[]
+
+  @@index([phone])
+  @@index([memberNo])
+  @@index([estate])
+  @@index([status])
+  @@index([role])
+}
+
+model UserSession {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  token         String
+  ipAddress     String?
+  userAgent     String?
+  lastActivity  DateTime @default(now())
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+
+  user          User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([token])
+}
+
+model Family {
+  id          Int    @id @default(autoincrement())
+  familyName  String
+  headUserId  Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  head        User   @relation("FamilyHead", fields: [headUserId], references: [id])
+  members     FamilyMember[]
+
+  @@index([headUserId])
+}
+
+model FamilyMember {
+  id          Int          @id @default(autoincrement())
+  familyId    Int
+  userId      Int
+  relationship Relationship
+  createdAt   DateTime     @default(now())
+
+  family      Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id])
+
+  @@unique([familyId, userId])
+  @@index([userId])
+}
+
+model GivingCategory {
+  id          Int           @id @default(autoincrement())
+  name        String        @unique
+  description String?
+  isActive    Boolean       @default(true)
+  sortOrder   Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  transactions Transaction[]
+  pledges      Pledge[]
+
+  @@index([isActive])
+}
+
+model Service {
+  id          Int         @id @default(autoincrement())
+  uuid        String      @default(uuid())
+  name        String
+  serviceType ServiceType @default(sunday_service)
+  date        DateTime
+  location    String?
+  notes       String?
+  createdBy   Int
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  deletedAt   DateTime?
+
+  transactions Transaction[]
+  attendances  Attendance[]
+  createdByUser User         @relation(fields: [createdBy], references: [id])
+
+  @@index([date])
+  @@index([serviceType])
+}
+
+model Transaction {
+  id                Int               @id @default(autoincrement())
+  uuid              String            @default(uuid())
+  mpesaReceipt      String?           @unique
+  userId            Int?
+  amount            Float
+  categoryId        Int
+  paymentMethod     PaymentMethod
+  transactionDate   DateTime          @default(now())
+  recordedByUserId  Int
+  referenceNote     String?
+  serviceId         Int?
+  status            TransactionStatus @default(completed)
+  reversalId        Int?
+  failureReason     String?
+  mpesaRequestId    String?
+  mpesaResultCode   Int?
+  mpesaResultDesc   String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  user              User?             @relation("TransactionUser", fields: [userId], references: [id])
+  category          GivingCategory    @relation(fields: [categoryId], references: [id])
+  recordedBy        User              @relation("RecordedBy", fields: [recordedByUserId], references: [id])
+  service           Service?          @relation(fields: [serviceId], references: [id])
+  reversal          Transaction?      @relation("Reversal", fields: [reversalId], references: [id])
+  reversals         Transaction[]     @relation("Reversal")
+  mpesaRequests     MpesaStkRequest[]
+
+  @@index([transactionDate])
+  @@index([userId])
+  @@index([mpesaReceipt])
+  @@index([status])
+  @@index([categoryId])
+}
+
+model Pledge {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  categoryId  Int
+  amount      Float
+  targetDate  DateTime?
+  amountPaid  Float    @default(0)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User           @relation(fields: [userId], references: [id])
+  category    GivingCategory @relation(fields: [categoryId], references: [id])
+
+  @@index([userId])
+  @@index([categoryId])
+}
+
+model Attendance {
+  id            Int            @id @default(autoincrement())
+  uuid          String         @default(uuid())
+  userId        Int
+  serviceId     Int
+  checkInTime   DateTime       @default(now())
+  checkInMethod CheckInMethod
+  syncedAt      DateTime?
+  isOfflineSync Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id])
+  service       Service        @relation(fields: [serviceId], references: [id])
+
+  @@unique([userId, serviceId])
+  @@index([serviceId])
+  @@index([userId])
+  @@index([checkInTime])
+}
+
+model ChurchGroup {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  leaderId    Int?
+  estate      String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  leader      User?       @relation(fields: [leaderId], references: [id])
+  members     GroupMember[]
+  followUps   FollowUp[]
+
+  @@index([estate])
+  @@index([leaderId])
+}
+
+model GroupMember {
+  id        Int      @id @default(autoincrement())
+  groupId   Int
+  userId    Int
+  joinedAt  DateTime @default(now())
+
+  group     ChurchGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id])
+
+  @@unique([groupId, userId])
+  @@index([userId])
+}
+
+model FollowUp {
+  id          Int         @id @default(autoincrement())
+  uuid        String      @default(uuid())
+  title       String
+  description String?
+  trigger     TaskTrigger @default(manual)
+  assignedTo  Int
+  createdBy   Int
+  groupId     Int?
+  relatedUserId Int?
+  status      TaskStatus  @default(open)
+  notes       String?
+  closedAt    DateTime?
+  dueDate     DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  assignedUser  User        @relation("AssignedUser", fields: [assignedTo], references: [id])
+  createdByUser User        @relation("CreatedBy", fields: [createdBy], references: [id])
+  group         ChurchGroup? @relation(fields: [groupId], references: [id])
+
+  @@index([assignedTo])
+  @@index([status])
+  @@index([trigger])
+  @@index([dueDate])
+}
+
+model PrayerRequest {
+  id          Int           @id @default(autoincrement())
+  uuid        String        @default(uuid())
+  userId      Int?
+  name        String?
+  phone       String?
+  request     String
+  isAnonymous Boolean       @default(false)
+  status      PrayerStatus  @default(new)
+  assignedTo  Int?
+  response    String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  user        User?         @relation(fields: [userId], references: [id])
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Message {
+  id            Int      @id @default(autoincrement())
+  uuid          String   @default(uuid())
+  recipientId   Int
+  type          String   @default("sms")
+  subject       String?
+  body          String
+  cost          Float?
+  status        String   @default("pending")
+  deliveryStatus String?
+  sentById      Int
+  sentAt        DateTime @default(now())
+  deliveredAt   DateTime?
+  createdAt     DateTime @default(now())
+
+  recipient     User     @relation("MessageRecipient", fields: [recipientId], references: [id])
+  sentBy        User     @relation("SentByUser", fields: [sentById], references: [id])
+
+  @@index([recipientId])
+  @@index([status])
+  @@index([sentAt])
+}
+
+model Announcement {
+  id          Int      @id @default(autoincrement())
+  title       String
+  body        String
+  sendSms     Boolean  @default(false)
+  sendEmail   Boolean  @default(false)
+  createdBy   Int
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdByUser User   @relation("CreatedByUser", fields: [createdBy], references: [id])
+
+  @@index([publishedAt])
+}
+
+// M-Pesa STK Push requests log
+model MpesaStkRequest {
+  id              Int      @id @default(autoincrement())
+  phone           String
+  amount          Float
+  accountRef      String?
+  transactionDesc String?
+  checkoutRequestId String @unique
+  merchantRequestId String?
+  responseCode    String?
+  responseDesc    String?
+  resultCode      String?
+  resultDesc      String?
+  transactionId   Int?
+  isComplete      Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  transaction     Transaction? @relation(fields: [transactionId], references: [id])
+
+  @@index([checkoutRequestId])
+  @@index([phone])
+  @@index([isComplete])
+}
