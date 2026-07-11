@@ -5,6 +5,7 @@ import financeRoutes from './finance.routes';
 import attendanceRoutes from './attendance.routes';
 import groupRoutes from './group.routes';
 import followupRoutes from './followup.routes';
+import portalRoutes from './portal.routes';
 import communicationRoutes from './communication.routes';
 
 const router = Router();
@@ -20,6 +21,7 @@ router.use('/finance', financeRoutes);
 router.use('/', attendanceRoutes);
 router.use('/groups', groupRoutes);
 router.use('/followups', followupRoutes);
+router.use('/portal', portalRoutes);
 router.use('/', communicationRoutes);
 
 export default router;
