@@ -27,6 +27,20 @@ app.get('/debug/db', async (_req, res) => {
   }
 });
 
+// Debug: test login endpoint
+app.post('/debug/login', async (req, res) => {
+  try {
+    const { authService } = await import('./services/auth.service');
+    const result = await authService.login(req.body.phone, req.body.password);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({
+      error: err.message,
+      stack: err.stack?.split('\n').slice(0, 5).join('\n'),
+    });
+  }
+});
+
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
