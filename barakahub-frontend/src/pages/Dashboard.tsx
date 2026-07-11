@@ -113,7 +113,11 @@ export default function Dashboard() {
   const lastService = services[0];
   const prevService = services[1];
   const isLoading = servicesQ.isLoading || activeMembersQ.isLoading || followupStatsQ.isLoading;
-  const isEmpty = !isLoading && services.length === 0;
+  const hasMembers = (totalMembersQ.data || 0) > 0;
+  const hasServiceData = services.length > 0;
+  const hasTransactions = (recentTxQ.data || []).length > 0;
+  const hasFollowups = (followupStatsQ.data?.total || 0) > 0;
+  const trulyEmpty = !isLoading && !hasServiceData && !hasMembers && !hasTransactions && !hasFollowups;
 
   const attendanceChange = lastService && prevService
     ? ((lastService.totalAttendance - prevService.totalAttendance) / prevService.totalAttendance * 100).toFixed(1)
@@ -147,14 +151,14 @@ export default function Dashboard() {
         <div>
           <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {isPastorAdmin && lastService
+            {hasServiceData && lastService
               ? `Last service: ${lastService.name} — ${formatDate(lastService.date)}`
               : `Welcome, ${user?.firstName}`}
           </p>
         </div>
       </div>
 
-      {isEmpty ? (
+      {trulyEmpty ? (
         <div className="bg-white rounded-xl shadow-sm p-12 text-center">
           <Church className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h2 className="text-lg font-semibold text-gray-700 mb-2">Welcome to BarakaHub</h2>
@@ -162,7 +166,7 @@ export default function Dashboard() {
             Record your first service to see insights, attendance trends, and giving summaries.
           </p>
         </div>
-      ) : isLoading ? (
+      ) : isLoading && !hasServiceData && !hasMembers ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
           {[1,2,3,4].map(i => <SkeletonCard key={i} />)}
         </div>
