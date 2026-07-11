@@ -1,6 +1,3 @@
-# BarakaHub - Render Blueprint
-# Defines the backend API service and PostgreSQL database
-
 databases:
   - name: barakahub-db
     plan: free
@@ -12,9 +9,8 @@ services:
     name: barakahub-api
     runtime: node
     plan: free
-    buildCommand: bash ./barakahub-backend/scripts/build.sh
-    startCommand: cd barakahub-backend && npx prisma migrate deploy && npm start
-    healthCheckPath: /api/v1/health
+    buildCommand: cd barakahub-backend && npm install && npx prisma generate && npm run build
+    startCommand: cd barakahub-backend && node dist/index.js
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -28,5 +24,3 @@ services:
         value: BarakaHub
       - key: PORT
         value: "10000"
-      - key: REDIS_URL
-        value: "redis://localhost:6379"  # Replace with Upstash Redis if needed
