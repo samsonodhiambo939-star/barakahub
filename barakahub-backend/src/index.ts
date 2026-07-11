@@ -14,7 +14,20 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Security
-app.use(helmet());
+const cspConnectSrc = ["'self'"];
+if (config.appUrl) cspConnectSrc.push(config.appUrl);
+if (config.apiUrl && config.apiUrl !== config.appUrl) cspConnectSrc.push(config.apiUrl);
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      connectSrc: cspConnectSrc,
+      imgSrc: ["'self'", "data:"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https:"],
+    },
+  },
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
 app.use(cors({
   origin: config.appUrl,
   credentials: true,

@@ -5,6 +5,7 @@ export const config = {
   port: parseInt(process.env.PORT || '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   appUrl: process.env.APP_URL || 'http://localhost:5173',
+  apiUrl: process.env.API_URL || 'http://localhost:3000',
   appName: process.env.APP_NAME || 'BarakaHub',
   jwt: {
     secret: process.env.JWT_SECRET || 'change-me-in-production',
