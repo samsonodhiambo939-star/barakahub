@@ -27,6 +27,19 @@ router.get('/debug/db', async (_req, res) => {
   }
 });
 
+router.post('/debug/echo', (req, res) => {
+  res.json({ body: req.body, headers: req.headers, hasJsonParser: typeof req.body === 'object' });
+});
+
+router.get('/debug/users', async (_req, res) => {
+  try {
+    const users = await _prisma.user.findMany({ take: 5 });
+    res.json({ userCount: users.length, users: users.map((u: { id: number; firstName: string; lastName: string; phone: string; role: string }) => ({ id: u.id, firstName: u.firstName, lastName: u.lastName, phone: u.phone, role: u.role })) });
+  } catch (e: unknown) {
+    res.json({ userError: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 router.use('/auth', authRoutes);
 router.use('/members', memberRoutes);
 router.use('/finance', financeRoutes);
