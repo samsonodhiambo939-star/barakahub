@@ -16,18 +16,23 @@ app.get('/', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Body parsing
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
 // Debug: check database connection
 app.get('/debug/db', async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1 as connected`;
     const userCount = await prisma.user.count();
-    res.json({ database: 'connected', userCount });
+    const users = await prisma.user.findMany({ select: { id: true, phone: true, firstName: true, role: true } });
+    res.json({ database: 'connected', userCount, users });
   } catch (err: any) {
     res.status(500).json({ database: 'error', message: err.message, code: err.code });
   }
 });
 
-// Debug: test login endpoint
+// Debug: test login endpoint (direct, no middleware)
 app.post('/debug/login', async (req, res) => {
   try {
     const { authService } = await import('./services/auth.service');
@@ -40,10 +45,6 @@ app.post('/debug/login', async (req, res) => {
     });
   }
 });
-
-// Body parsing
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
 
 // Security
 const cspConnectSrc = ["'self'"];

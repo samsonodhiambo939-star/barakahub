@@ -18,7 +18,11 @@ export class AuthController {
       const result = await authService.login(phone, password);
       res.json(result);
     } catch (error: any) {
-      res.status(401).json({ error: error.message });
+      console.error('Login error:', error?.message || error);
+      if (error.message === 'Invalid credentials' || error.message === 'Account is inactive. Contact admin.') {
+        return res.status(401).json({ error: error.message });
+      }
+      next(error);
     }
   }
 
