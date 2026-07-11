@@ -9,6 +9,11 @@ import communicationRoutes from './communication.routes';
 
 const router = Router();
 
+// Health check (must be first, before auth middleware)
+router.get('/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 router.use('/auth', authRoutes);
 router.use('/members', memberRoutes);
 router.use('/finance', financeRoutes);
@@ -16,9 +21,5 @@ router.use('/', attendanceRoutes);
 router.use('/groups', groupRoutes);
 router.use('/followups', followupRoutes);
 router.use('/', communicationRoutes);
-
-router.get('/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
 
 export default router;
