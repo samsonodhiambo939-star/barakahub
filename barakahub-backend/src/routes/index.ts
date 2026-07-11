@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 import authRoutes from './auth.routes';
 import memberRoutes from './member.routes';
 import financeRoutes from './finance.routes';
@@ -9,38 +10,74 @@ import followupRoutes from './followup.routes';
 import communicationRoutes from './communication.routes';
 
 const router = Router();
-const _prisma = new PrismaClient();
 
 // Health check (must be first, before auth middleware)
 router.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-router.get('/debug/db', async (_req, res) => {
+// One-time setup for fresh database
+router.post('/setup', async (_req, res) => {
+  const prisma = new PrismaClient();
   try {
-    await _prisma.$connect();
-    const tables = await _prisma.$queryRawUnsafe('SELECT table_name FROM information_schema.tables WHERE table_schema = \'public\'') as { table_name: string }[];
-    await _prisma.$disconnect();
-    res.json({ dbConnected: true, tables: tables.map(t => t.table_name) });
+    const existingUsers = await prisma.user.count();
+    if (existingUsers > 0) {
+      await prisma.$disconnect();
+      return res.status(400).json({ error: 'Database already seeded' });
+    }
+
+    const adminPassword = await bcrypt.hash('Admin@123', 12);
+    await prisma.user.create({
+      data: {
+        memberNo: 'CHC-0001',
+        firstName: 'Super',
+        lastName: 'Admin',
+        phone: '254700000000',
+        email: 'admin@barakahub.org',
+        idNumber: '12345678',
+        gender: 'male' as any,
+        maritalStatus: 'single' as any,
+        role: 'admin' as any,
+        passwordHash: adminPassword,
+      },
+    });
+
+    const categories = [
+      { name: 'Tithe', description: 'Biblical tithe - 10% of income', sortOrder: 1 },
+      { name: 'Offering', description: 'General offering', sortOrder: 2 },
+      { name: 'Thanksgiving', description: 'Special thanksgiving', sortOrder: 3 },
+      { name: 'Building Fund', description: 'Church building/construction fund', sortOrder: 4 },
+      { name: 'Missions', description: 'Missionary support', sortOrder: 5 },
+      { name: 'Welfare', description: 'Benevolence and member welfare', sortOrder: 6 },
+    ];
+    for (const cat of categories) {
+      await prisma.givingCategory.create({ data: cat as any });
+    }
+
+    const memberPassword = await bcrypt.hash('Member@123', 12);
+    await prisma.user.create({
+      data: {
+        memberNo: 'CHC-0002',
+        firstName: 'Jane',
+        lastName: 'Wanjiku',
+        phone: '254711111111',
+        email: 'jane@example.com',
+        idNumber: '87654321',
+        gender: 'female' as any,
+        dob: new Date('1995-06-15'),
+        maritalStatus: 'married' as any,
+        physicalAddress: '123 River Road',
+        estate: 'South B',
+        role: 'member' as any,
+        passwordHash: memberPassword,
+      },
+    });
+
+    await prisma.$disconnect();
+    res.json({ message: 'Database seeded successfully' });
   } catch (e: unknown) {
-    res.json({ dbConnected: false, error: e instanceof Error ? e.message : String(e) });
-  }
-});
-
-router.all('/debug/echo', (req, res) => {
-  res.json({ method: req.method, body: req.body, contentType: req.headers['content-type'], hasJsonParser: typeof req.body === 'object' });
-});
-
-router.get('/debug/error', (req, res) => {
-  throw new Error('test error from handler');
-});
-
-router.get('/debug/users', async (_req, res) => {
-  try {
-    const users = await _prisma.user.findMany({ take: 5 });
-    res.json({ userCount: users.length, users: users.map((u: { id: number; firstName: string; lastName: string; phone: string; role: string }) => ({ id: u.id, firstName: u.firstName, lastName: u.lastName, phone: u.phone, role: u.role })) });
-  } catch (e: unknown) {
-    res.json({ userError: e instanceof Error ? e.message : String(e) });
+    await prisma.$disconnect();
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
   }
 });
 
@@ -52,4 +89,4 @@ router.use('/groups', groupRoutes);
 router.use('/followups', followupRoutes);
 router.use('/', communicationRoutes);
 
-export default router;
+export default router; 

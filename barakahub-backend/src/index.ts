@@ -9,7 +9,7 @@ import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
 
-// Body parsing (must be before rate limiter)
+// Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -27,13 +27,6 @@ const limiter = rateLimit({
   message: { error: 'Too many requests, please try again later' },
 });
 app.use(limiter);
-
-// STK Push rate limit: 1 per 30 seconds per IP
-const stkLimiter = rateLimit({
-  windowMs: 30 * 1000,
-  max: 1,
-  message: { error: 'Please wait 30 seconds between STK Push requests' },
-});
 
 // Logging
 if (config.nodeEnv !== 'test') {

@@ -14,13 +14,11 @@ export class AuthController {
 
   async login(req: Request, res: Response, next: NextFunction) {
     try {
-      console.log('login called, body:', JSON.stringify(req.body));
       const { phone, password } = req.body;
       const result = await authService.login(phone, password);
       res.json(result);
     } catch (error: any) {
-      console.error('Login error caught:', error?.message || error);
-      res.status(401).json({ error: error.message || 'Login failed' });
+      res.status(401).json({ error: error.message });
     }
   }
 
