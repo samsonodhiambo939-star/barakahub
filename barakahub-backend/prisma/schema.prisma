@@ -94,6 +94,24 @@ enum TaskTrigger {
   manual
 }
 
+enum GroupType {
+  cell
+  department
+  ministry
+  committee
+}
+
+enum GroupStatus {
+  active
+  inactive
+}
+
+enum GroupRole {
+  member
+  assistant
+  leader
+}
+
 enum PrayerStatus {
   new
   prayed_for
@@ -167,7 +185,8 @@ model User {
   servicesCreated        Service[]        @relation("CreatedBy")
   servicesClosed         Service[]        @relation("ClosedBy")
   checkedInAttendances   Attendance[]     @relation("CheckedInBy")
-  groupsLed              ChurchGroup[]
+  groupsLed              ChurchGroup[] @relation("GroupLeader")
+  groupsAssisted         ChurchGroup[] @relation("AssistantLeader")
   userSessions           UserSession[]
 
   @@index([phone])
@@ -348,29 +367,38 @@ model Attendance {
 }
 
 model ChurchGroup {
-  id          Int       @id @default(autoincrement())
-  name        String    @unique
-  description String?
-  leaderId    Int?
-  estate      String?
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  id                Int          @id @default(autoincrement())
+  name              String
+  description       String?
+  type              GroupType    @default(cell)
+  leaderId          Int?
+  assistantLeaderId Int?
+  estate            String?
+  meetingDay        String?
+  meetingTime       String?
+  location          String?
+  status            GroupStatus  @default(active)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  deletedAt         DateTime?
 
-  leader      User?       @relation(fields: [leaderId], references: [id])
-  members     GroupMember[]
-  followUps   FollowUp[]
+  leader            User?          @relation("GroupLeader", fields: [leaderId], references: [id])
+  assistantLeader   User?          @relation("AssistantLeader", fields: [assistantLeaderId], references: [id])
+  members           GroupMember[]
+  followUps         FollowUp[]
 
   @@index([estate])
   @@index([leaderId])
+  @@index([status])
+  @@index([type])
 }
 
 model GroupMember {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   groupId   Int
   userId    Int
-  joinedAt  DateTime @default(now())
+  role      GroupRole @default(member)
+  joinedAt  DateTime  @default(now())
 
   group     ChurchGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
   user      User        @relation(fields: [userId], references: [id])

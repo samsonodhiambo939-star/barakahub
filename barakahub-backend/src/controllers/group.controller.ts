@@ -14,11 +14,14 @@ export class GroupController {
 
   async findAll(req: AuthRequest, res: Response) {
     try {
-      const { page, limit, estate } = req.query as Record<string, string>;
+      const { page, limit, type, estate, status, search } = req.query as Record<string, string>;
       const result = await groupService.findAll({
         page: page ? parseInt(page) : undefined,
         limit: limit ? parseInt(limit) : undefined,
+        type,
         estate,
+        status,
+        search,
       });
       res.json(result);
     } catch (error: any) {
@@ -36,6 +39,16 @@ export class GroupController {
     }
   }
 
+  async update(req: AuthRequest, res: Response) {
+    try {
+      const id = parseInt(req.params.id as string);
+      const group = await groupService.update(id, req.body);
+      res.json(group);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
   async addMember(req: AuthRequest, res: Response) {
     try {
       const groupId = parseInt(req.params.id as string);
@@ -47,12 +60,61 @@ export class GroupController {
     }
   }
 
+  async addMembers(req: AuthRequest, res: Response) {
+    try {
+      const groupId = parseInt(req.params.id as string);
+      const { memberIds } = req.body;
+      if (!Array.isArray(memberIds) || memberIds.length === 0) {
+        return res.status(400).json({ error: 'memberIds array is required' });
+      }
+      const result = await groupService.addMembers(groupId, memberIds);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
   async removeMember(req: AuthRequest, res: Response) {
     try {
       const groupId = parseInt(req.params.id as string);
       const userId = parseInt(req.params.userId as string);
       await groupService.removeMember(groupId, userId);
       res.json({ message: 'Member removed from group' });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  async updateMemberRole(req: AuthRequest, res: Response) {
+    try {
+      const groupId = parseInt(req.params.id as string);
+      const userId = parseInt(req.params.userId as string);
+      const { role } = req.body;
+      if (!role) return res.status(400).json({ error: 'role is required' });
+      const member = await groupService.updateMemberRole(groupId, userId, role);
+      res.json(member);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  async getStats(req: AuthRequest, res: Response) {
+    try {
+      const id = parseInt(req.params.id as string);
+      const stats = await groupService.getStats(id);
+      res.json(stats);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  async getSuggestedMembers(req: AuthRequest, res: Response) {
+    try {
+      const id = parseInt(req.params.id as string);
+      const group = await groupService.findById(id);
+      if (!group.estate) return res.json([]);
+      const members = await groupService.getSuggestedMembers(group.estate, id);
+      res.json(members);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

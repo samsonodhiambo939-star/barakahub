@@ -1,6 +1,6 @@
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
-import { LogOut, Home, Users, DollarSign, Church, UserCheck, Menu, X } from 'lucide-react';
+import { LogOut, Home, Users, DollarSign, Church, UserCheck, LayoutGrid, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 
 export default function Layout() {
@@ -19,6 +19,7 @@ export default function Layout() {
     { to: '/finance', label: 'Finance', icon: DollarSign, roles: ['admin', 'pastor'] },
     { to: '/services', label: 'Services', icon: Church, roles: ['admin', 'pastor', 'usher', 'leader'] },
     { to: '/followups', label: 'Follow-ups', icon: UserCheck, roles: ['admin', 'pastor', 'leader', 'secretary'] },
+    { to: '/groups', label: 'Groups', icon: LayoutGrid, roles: ['admin', 'pastor', 'leader', 'secretary'] },
   ];
 
   const visibleNav = navItems.filter((item) => user && item.roles.includes(user.role));
