@@ -9,9 +9,22 @@ import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
 
+import { prisma } from './utils/prisma';
+
 // Root health check (for Render's default health check path)
 app.get('/', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Debug: check database connection
+app.get('/debug/db', async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1 as connected`;
+    const userCount = await prisma.user.count();
+    res.json({ database: 'connected', userCount });
+  } catch (err: any) {
+    res.status(500).json({ database: 'error', message: err.message, code: err.code });
+  }
 });
 
 // Body parsing
