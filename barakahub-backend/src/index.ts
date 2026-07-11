@@ -38,13 +38,19 @@ app.use(cors({
   credentials: true,
 }));
 
-// Rate limiting
+// Rate limiting — generous global limit; strict on auth
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 500,
   message: { error: 'Too many requests, please try again later' },
 });
-app.use(limiter);
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: 'Too many login attempts, please try again later' },
+});
+app.use('/api/v1/auth', authLimiter);
+app.use('/api/v1', limiter);
 
 // Logging
 if (config.nodeEnv !== 'test') {
