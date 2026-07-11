@@ -19,10 +19,11 @@ export class FinanceController {
     try {
       const id = parseInt(req.params.id as string);
       const { reason } = req.body;
+      if (!reason || reason.trim().length < 3) {
+        return res.status(400).json({ error: 'Void reason is required (min 3 characters)' });
+      }
       const reversal = await financeService.reverseTransaction(
-        id,
-        reason,
-        req.user!.id
+        id, reason, req.user!.id
       );
       res.json(reversal);
     } catch (error: any) {
@@ -30,14 +31,24 @@ export class FinanceController {
     }
   }
 
+  async getNextReceiptNo(_req: AuthRequest, res: Response) {
+    try {
+      const receiptNo = await financeService.generateReceiptNo();
+      res.json({ receiptNo });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
   async findAllTransactions(req: AuthRequest, res: Response) {
     try {
-      const { userId, categoryId, status, paymentMethod, startDate, endDate, page, limit } = req.query as Record<string, string>;
+      const { userId, categoryId, status, paymentMethod, search, startDate, endDate, page, limit } = req.query as Record<string, string>;
       const result = await financeService.findAllTransactions({
         userId: userId ? parseInt(userId as string) : undefined,
         categoryId: categoryId ? parseInt(categoryId as string) : undefined,
         status: status as string,
         paymentMethod: paymentMethod as string,
+        search: search as string,
         startDate: startDate as string,
         endDate: endDate as string,
         page: page ? parseInt(page as string) : undefined,

@@ -13,6 +13,7 @@ router.get('/categories', financeController.getCategories.bind(financeController
 
 // Transactions
 router.get('/transactions', authorize('admin', 'pastor', 'leader'), financeController.findAllTransactions.bind(financeController));
+router.get('/transactions/next-receipt', financeController.getNextReceiptNo.bind(financeController));
 router.post('/transactions', authorize('admin', 'pastor'), validate(createTransactionSchema), financeController.createTransaction.bind(financeController));
 router.post('/transactions/:id/reverse', authorize('admin'), financeController.reverseTransaction.bind(financeController));
 

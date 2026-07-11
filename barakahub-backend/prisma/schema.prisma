@@ -142,6 +142,7 @@ model User {
   familyMembers          FamilyMember[]
   transactions           Transaction[]      @relation("TransactionUser")
   recordedTransactions   Transaction[]      @relation("RecordedBy")
+  voidedTransactions     Transaction[]      @relation("VoidedBy")
   pledges                Pledge[]
   attendanceRecords      Attendance[]
   followUpAssignments    FollowUp[]         @relation("AssignedUser")
@@ -245,6 +246,7 @@ model Service {
 model Transaction {
   id                Int               @id @default(autoincrement())
   uuid              String            @default(uuid())
+  receiptNo         String?           @unique
   mpesaReceipt      String?           @unique
   userId            Int?
   amount            Float
@@ -256,6 +258,9 @@ model Transaction {
   serviceId         Int?
   status            TransactionStatus @default(completed)
   reversalId        Int?
+  voidReason        String?
+  voidedAt          DateTime?
+  voidedById        Int?
   failureReason     String?
   mpesaRequestId    String?
   mpesaResultCode   Int?
@@ -266,6 +271,7 @@ model Transaction {
   user              User?             @relation("TransactionUser", fields: [userId], references: [id])
   category          GivingCategory    @relation(fields: [categoryId], references: [id])
   recordedBy        User              @relation("RecordedBy", fields: [recordedByUserId], references: [id])
+  voidedBy          User?             @relation("VoidedBy", fields: [voidedById], references: [id])
   service           Service?          @relation(fields: [serviceId], references: [id])
   reversal          Transaction?      @relation("Reversal", fields: [reversalId], references: [id])
   reversals         Transaction[]     @relation("Reversal")
@@ -274,6 +280,7 @@ model Transaction {
   @@index([transactionDate])
   @@index([userId])
   @@index([mpesaReceipt])
+  @@index([receiptNo])
   @@index([status])
   @@index([categoryId])
 }

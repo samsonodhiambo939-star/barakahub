@@ -1,6 +1,20 @@
 import { prisma } from '../utils/prisma';
 
 export class FinanceService {
+  async generateReceiptNo(): Promise<string> {
+    const last = await prisma.transaction.findFirst({
+      where: { receiptNo: { not: null } },
+      orderBy: { id: 'desc' },
+      select: { receiptNo: true },
+    });
+    let num = 1;
+    if (last?.receiptNo) {
+      const match = last.receiptNo.match(/BKH-RCP-(\d+)/);
+      if (match) num = parseInt(match[1]) + 1;
+    }
+    return `BKH-RCP-${String(num).padStart(6, '0')}`;
+  }
+
   async createTransaction(data: {
     userId?: number;
     amount: number;
@@ -25,8 +39,11 @@ export class FinanceService {
       }
     }
 
+    const receiptNo = await this.generateReceiptNo();
+
     const transaction = await prisma.transaction.create({
       data: {
+        receiptNo,
         userId: data.userId || null,
         amount: data.amount,
         categoryId: data.categoryId,
@@ -40,9 +57,10 @@ export class FinanceService {
       },
       include: {
         user: {
-          select: { id: true, memberNo: true, firstName: true, lastName: true, phone: true },
+          select: { id: true, memberNo: true, firstName: true, lastName: true, phone: true, photoUrl: true },
         },
         category: { select: { id: true, name: true } },
+        recordedBy: { select: { id: true, firstName: true, lastName: true } },
       },
     });
 
@@ -57,18 +75,32 @@ export class FinanceService {
     if (!original) throw new Error('Transaction not found');
     if (original.reversalId) throw new Error('Transaction already reversed');
 
-    const reversal = await prisma.transaction.create({
-      data: {
-        userId: original.userId,
-        amount: original.amount,
-        categoryId: original.categoryId,
-        paymentMethod: original.paymentMethod,
-        referenceNote: `REVERSAL: ${reason}. Original ref: ${original.mpesaReceipt || original.id}`,
-        recordedByUserId,
-        status: 'completed',
-        reversalId: original.id,
-      },
-    });
+    const reversalReceiptNo = await this.generateReceiptNo();
+
+    const [reversal] = await prisma.$transaction([
+      prisma.transaction.create({
+        data: {
+          receiptNo: reversalReceiptNo,
+          userId: original.userId,
+          amount: original.amount,
+          categoryId: original.categoryId,
+          paymentMethod: original.paymentMethod,
+          referenceNote: `REVERSAL: ${reason}. Original: ${original.receiptNo || original.id}`,
+          recordedByUserId,
+          status: 'completed',
+          reversalId: original.id,
+        },
+        include: {
+          user: { select: { id: true, memberNo: true, firstName: true, lastName: true, phone: true } },
+          category: { select: { id: true, name: true } },
+          recordedBy: { select: { id: true, firstName: true, lastName: true } },
+        },
+      }),
+      prisma.transaction.update({
+        where: { id: transactionId },
+        data: { voidReason: reason, voidedAt: new Date(), voidedById: recordedByUserId },
+      }),
+    ]);
 
     return reversal;
   }
@@ -78,6 +110,7 @@ export class FinanceService {
     categoryId?: number;
     status?: string;
     paymentMethod?: string;
+    search?: string;
     startDate?: string;
     endDate?: string;
     page?: number;
@@ -93,6 +126,18 @@ export class FinanceService {
     if (params.categoryId) where.categoryId = params.categoryId;
     if (params.status) where.status = params.status;
     if (params.paymentMethod) where.paymentMethod = params.paymentMethod;
+
+    if (params.search) {
+      const s = params.search;
+      where.OR = [
+        { receiptNo: { contains: s } },
+        { referenceNote: { contains: s } },
+        { user: { firstName: { contains: s } } },
+        { user: { lastName: { contains: s } } },
+        { user: { phone: { contains: s } } },
+      ];
+    }
+
     if (params.startDate || params.endDate) {
       where.transactionDate = {};
       if (params.startDate) where.transactionDate.gte = new Date(params.startDate);
@@ -103,9 +148,10 @@ export class FinanceService {
       prisma.transaction.findMany({
         where,
         include: {
-          user: { select: { id: true, memberNo: true, firstName: true, lastName: true, phone: true } },
+          user: { select: { id: true, memberNo: true, firstName: true, lastName: true, phone: true, photoUrl: true } },
           category: { select: { id: true, name: true } },
           recordedBy: { select: { id: true, firstName: true, lastName: true } },
+          reversals: { select: { id: true, voidReason: true, voidedAt: true } },
         },
         skip,
         take: limit,
@@ -114,9 +160,12 @@ export class FinanceService {
       prisma.transaction.count({ where }),
     ]);
 
+    const grandTotal = transactions.reduce((sum: number, t: any) => sum + t.amount, 0);
+
     return {
       data: transactions,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      grandTotal,
     };
   }
 
