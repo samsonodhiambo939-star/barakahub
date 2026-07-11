@@ -50,6 +50,57 @@ export class FollowUpController {
       res.status(400).json({ error: error.message });
     }
   }
+
+  async getAbsentMembers(req: AuthRequest, res: Response) {
+    try {
+      const members = await followUpService.getAbsentMembers();
+      res.json(members);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  async getFirstTimeVisitors(req: AuthRequest, res: Response) {
+    try {
+      const visitors = await followUpService.getFirstTimeVisitors();
+      res.json(visitors);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  async assignTask(req: AuthRequest, res: Response) {
+    try {
+      const task = await followUpService.assignTask({
+        ...req.body,
+        createdBy: req.user!.id,
+      });
+      res.status(201).json(task);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  async completeTask(req: AuthRequest, res: Response) {
+    try {
+      const id = parseInt(req.params.id as string);
+      const { outcome, notes, nextActionDate } = req.body;
+      if (!outcome) return res.status(400).json({ error: 'Outcome is required' });
+      const result = await followUpService.completeTask(id, outcome, notes, nextActionDate);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  async getLeaders(req: AuthRequest, res: Response) {
+    try {
+      const leaders = await followUpService.getLeaders();
+      res.json(leaders);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
 }
 
 export const followUpController = new FollowUpController();

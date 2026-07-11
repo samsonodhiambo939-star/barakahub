@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Members from './pages/Members';
 import Finance from './pages/Finance';
 import Services from './pages/Services';
+import FollowUps from './pages/FollowUps';
 import type { ReactNode } from 'react';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -36,6 +37,7 @@ export default function App() {
             <Route path="members" element={<Members />} />
             <Route path="finance" element={<Finance />} />
             <Route path="services" element={<Services />} />
+            <Route path="followups" element={<FollowUps />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

@@ -80,6 +80,8 @@ enum TaskStatus {
   open
   in_progress
   closed
+  overdue
+  cancelled
 }
 
 enum TaskTrigger {
@@ -88,6 +90,7 @@ enum TaskTrigger {
   birthday
   sick
   new_baby
+  no_tithe
   manual
 }
 
@@ -154,6 +157,7 @@ model User {
   attendanceRecords      Attendance[]
   followUpAssignments    FollowUp[]         @relation("AssignedUser")
   followUpCreated        FollowUp[]         @relation("CreatedBy")
+  relatedFollowUps       FollowUp[]         @relation("RelatedUser")
   groupMemberships       GroupMember[]
   prayerRequests         PrayerRequest[]
   sentMessages           Message[]          @relation("SentByUser")
@@ -376,30 +380,33 @@ model GroupMember {
 }
 
 model FollowUp {
-  id          Int         @id @default(autoincrement())
-  uuid        String      @default(uuid())
-  title       String
-  description String?
-  trigger     TaskTrigger @default(manual)
-  assignedTo  Int
-  createdBy   Int
-  groupId     Int?
+  id            Int         @id @default(autoincrement())
+  uuid          String      @default(uuid())
+  title         String
+  description   String?
+  trigger       TaskTrigger @default(manual)
+  assignedTo    Int
+  createdBy     Int
+  groupId       Int?
   relatedUserId Int?
-  status      TaskStatus  @default(open)
-  notes       String?
-  closedAt    DateTime?
-  dueDate     DateTime?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  status        TaskStatus  @default(open)
+  outcome       String?
+  notes         String?
+  closedAt      DateTime?
+  dueDate       DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
-  assignedUser  User        @relation("AssignedUser", fields: [assignedTo], references: [id])
-  createdByUser User        @relation("CreatedBy", fields: [createdBy], references: [id])
-  group         ChurchGroup? @relation(fields: [groupId], references: [id])
+  assignedUser    User        @relation("AssignedUser", fields: [assignedTo], references: [id])
+  createdByUser   User        @relation("CreatedBy", fields: [createdBy], references: [id])
+  relatedUser     User?       @relation("RelatedUser", fields: [relatedUserId], references: [id])
+  group           ChurchGroup? @relation(fields: [groupId], references: [id])
 
   @@index([assignedTo])
   @@index([status])
   @@index([trigger])
   @@index([dueDate])
+  @@index([relatedUserId])
 }
 
 model PrayerRequest {

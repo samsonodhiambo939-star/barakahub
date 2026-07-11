@@ -25,6 +25,7 @@ export class FollowUpService {
       include: {
         assignedUser: { select: { id: true, firstName: true, lastName: true } },
         createdByUser: { select: { id: true, firstName: true, lastName: true } },
+        relatedUser: { select: { id: true, memberNo: true, firstName: true, lastName: true, phone: true, estate: true, photoUrl: true } },
       },
     });
   }
@@ -37,7 +38,7 @@ export class FollowUpService {
     limit?: number;
   }) {
     const page = params.page || 1;
-    const limit = params.limit || 20;
+    const limit = params.limit || 50;
     const skip = (page - 1) * limit;
 
     const where: any = {};
@@ -51,6 +52,7 @@ export class FollowUpService {
         include: {
           assignedUser: { select: { id: true, firstName: true, lastName: true } },
           createdByUser: { select: { id: true, firstName: true, lastName: true } },
+          relatedUser: { select: { id: true, memberNo: true, firstName: true, lastName: true, phone: true, estate: true, photoUrl: true } },
           group: { select: { id: true, name: true } },
         },
         skip,
@@ -68,7 +70,10 @@ export class FollowUpService {
 
   async updateStatus(id: number, status: string, notes?: string) {
     const data: any = { status };
-    if (status === 'closed') data.closedAt = new Date();
+    if (status === 'closed' || status === 'done') {
+      data.closedAt = new Date();
+      data.status = 'closed';
+    }
     if (notes) data.notes = notes;
 
     return prisma.followUp.update({
@@ -76,21 +81,182 @@ export class FollowUpService {
       data,
       include: {
         assignedUser: { select: { id: true, firstName: true, lastName: true } },
+        relatedUser: { select: { id: true, firstName: true, lastName: true, phone: true } },
+      },
+    });
+  }
+
+  async completeTask(id: number, outcome: string, notes?: string, nextActionDate?: string) {
+    const data: any = {
+      status: 'closed',
+      closedAt: new Date(),
+      outcome,
+    };
+    if (notes) data.notes = notes;
+    if (nextActionDate) data.dueDate = new Date(nextActionDate);
+
+    return prisma.followUp.update({
+      where: { id },
+      data,
+      include: {
+        assignedUser: { select: { id: true, firstName: true, lastName: true } },
+        relatedUser: { select: { id: true, firstName: true, lastName: true, phone: true } },
       },
     });
   }
 
   async getStats() {
-    const [open, inProgress, closed, overdue] = await Promise.all([
+    const [open, inProgress, closed, overdue, totalTasks] = await Promise.all([
       prisma.followUp.count({ where: { status: 'open' } }),
       prisma.followUp.count({ where: { status: 'in_progress' } }),
-      prisma.followUp.count({ where: { status: 'closed' } }),
       prisma.followUp.count({
-        where: { status: { notIn: ['closed'] }, dueDate: { lt: new Date() } },
+        where: { status: 'closed', closedAt: { gte: new Date(Date.now() - 7 * 86400000) } },
+      }),
+      prisma.followUp.count({
+        where: { status: 'open', dueDate: { lt: new Date() } },
+      }),
+      prisma.followUp.count(),
+    ]);
+
+    return { pending: open, inProgress, completedThisWeek: closed, overdue, total: totalTasks };
+  }
+
+  // ─── Smart List: Absent 3+ Weeks ────────────────────
+  async getAbsentMembers() {
+    const twentyOneDaysAgo = new Date();
+    twentyOneDaysAgo.setDate(twentyOneDaysAgo.getDate() - 21);
+
+    const activeMembers = await prisma.user.findMany({
+      where: { isActive: true, status: 'active', deletedAt: null },
+      select: { id: true },
+    });
+    const activeIds = activeMembers.map((u) => u.id);
+
+    const attendeeIds = (
+      await prisma.attendance.findMany({
+        where: { checkInTime: { gte: twentyOneDaysAgo }, userId: { in: activeIds } },
+        select: { userId: true },
+        distinct: ['userId'],
+      })
+    ).map((a) => a.userId);
+
+    const absentIds = activeIds.filter((id) => !attendeeIds.includes(id));
+
+    if (absentIds.length === 0) return [];
+
+    const [users, lastAttendances, groups, existingTasks] = await Promise.all([
+      prisma.user.findMany({
+        where: { id: { in: absentIds } },
+        select: { id: true, memberNo: true, firstName: true, lastName: true, phone: true, estate: true, photoUrl: true, joinDate: true },
+      }),
+      prisma.attendance.groupBy({
+        by: ['userId'],
+        where: { userId: { in: absentIds } },
+        _max: { checkInTime: true },
+      }),
+      prisma.groupMember.findMany({
+        where: { userId: { in: absentIds } },
+        include: { group: { select: { id: true, name: true } } },
+      }),
+      prisma.followUp.findMany({
+        where: { relatedUserId: { in: absentIds }, trigger: 'absent_3_weeks', status: { notIn: ['closed'] } },
+        select: { id: true, relatedUserId: true, assignedTo: true, status: true, assignedUser: { select: { id: true, firstName: true, lastName: true } } },
       }),
     ]);
 
-    return { open, inProgress, closed, overdue };
+    const lastSeenMap = new Map(lastAttendances.map((a) => [a.userId, a._max.checkInTime]));
+    const groupMap = new Map<string, { id: number; name: string }[]>();
+    groups.forEach((gm) => {
+      const arr = groupMap.get(String(gm.userId)) || [];
+      arr.push(gm.group);
+      groupMap.set(String(gm.userId), arr);
+    });
+    const taskMap = new Map(existingTasks.map((t) => [t.relatedUserId, t]));
+
+    return users.map((u) => ({
+      ...u,
+      lastSeen: lastSeenMap.get(u.id) || null,
+      groups: groupMap.get(String(u.id)) || [],
+      assignedTask: taskMap.get(u.id) || null,
+    }));
+  }
+
+  // ─── Smart List: First-Time Visitors ────────────────
+  async getFirstTimeVisitors() {
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+    const records = await prisma.attendance.findMany({
+      where: { isFirstTime: true, checkInTime: { gte: fourteenDaysAgo } },
+      include: {
+        user: { select: { id: true, memberNo: true, firstName: true, lastName: true, phone: true, estate: true, photoUrl: true, joinDate: true, status: true } },
+        service: { select: { id: true, date: true, name: true } },
+        checkedInByUser: { select: { id: true, firstName: true, lastName: true } },
+      },
+      orderBy: { checkInTime: 'desc' },
+    });
+
+    const visitorIds = [...new Set(records.map((r) => r.userId))];
+    const existingTasks = await prisma.followUp.findMany({
+      where: { relatedUserId: { in: visitorIds }, trigger: 'new_visitor', status: { notIn: ['closed'] } },
+      select: { id: true, relatedUserId: true, assignedTo: true, status: true, assignedUser: { select: { id: true, firstName: true, lastName: true } } },
+    });
+    const taskMap = new Map(existingTasks.map((t) => [t.relatedUserId, t]));
+
+    return records.map((r) => ({
+      id: r.user.id,
+      attendanceId: r.id,
+      memberNo: r.user.memberNo,
+      firstName: r.user.firstName,
+      lastName: r.user.lastName,
+      phone: r.user.phone,
+      estate: r.user.estate,
+      photoUrl: r.user.photoUrl,
+      visitDate: r.checkInTime,
+      serviceName: r.service?.name,
+      invitedBy: r.checkedInByUser ? `${r.checkedInByUser.firstName} ${r.checkedInByUser.lastName}` : null,
+      status: r.user.status,
+      assignedTask: taskMap.get(r.user.id) || null,
+    }));
+  }
+
+  // ─── Assign Task ─────────────────────────────────────
+  async assignTask(data: {
+    relatedUserId: number;
+    trigger: string;
+    title: string;
+    description?: string;
+    assignedTo: number;
+    createdBy: number;
+    dueDate?: string;
+  }) {
+    return prisma.followUp.create({
+      data: {
+        title: data.title,
+        description: data.description,
+        trigger: data.trigger as any,
+        assignedTo: data.assignedTo,
+        createdBy: data.createdBy,
+        relatedUserId: data.relatedUserId,
+        dueDate: data.dueDate ? new Date(data.dueDate) : new Date(Date.now() + 3 * 86400000),
+        status: 'open',
+      },
+      include: {
+        assignedUser: { select: { id: true, firstName: true, lastName: true, phone: true } },
+        createdByUser: { select: { id: true, firstName: true, lastName: true } },
+        relatedUser: { select: { id: true, memberNo: true, firstName: true, lastName: true, phone: true, estate: true, photoUrl: true } },
+      },
+    });
+  }
+
+  // ─── Get leaders for assignment ──────────────────────
+  async getLeaders() {
+    const leaders = await prisma.user.findMany({
+      where: { role: { in: ['leader', 'pastor', 'admin'] }, isActive: true },
+      select: { id: true, firstName: true, lastName: true, phone: true, role: true },
+      orderBy: { firstName: 'asc' },
+    });
+    return leaders;
   }
 
   async autoCreateAbsenteeFollowUps() {
