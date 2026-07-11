@@ -62,7 +62,7 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
 }));
 app.use(cors({
-  origin: config.appUrl,
+  origin: true,
   credentials: true,
 }));
 

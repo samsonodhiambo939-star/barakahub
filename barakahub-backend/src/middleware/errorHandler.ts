@@ -22,7 +22,6 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
   console.error('Unhandled error:', err);
 
   return res.status(500).json({
-    error: err.message || 'Internal server error',
-    stack: err.stack?.split('\n').slice(0, 3).join('\n'),
+    error: 'Internal server error',
   });
 }
