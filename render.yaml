@@ -10,10 +10,9 @@ databases:
 services:
   - type: web
     name: barakahub-api
-    runtime: node
+    env: docker
     plan: free
-    buildCommand: npm install && npx prisma generate && npm run build
-    startCommand: npx prisma migrate deploy && npm start
+    dockerfilePath: ./barakahub-backend/Dockerfile
     healthCheckPath: /api/v1/health
     envVars:
       - key: DATABASE_URL
