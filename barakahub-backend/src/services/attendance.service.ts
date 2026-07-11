@@ -104,7 +104,7 @@ export class AttendanceService {
         where: { serviceId },
         select: { userId: true },
       })
-    ).map((a) => a.userId);
+    ).map((a: any) => a.userId);
 
     const absentees = await prisma.user.findMany({
       where: {
@@ -154,7 +154,7 @@ export class AttendanceService {
       orderBy: { checkInTime: 'desc' },
     });
 
-    const byService = attendances.reduce((acc: Record<string, number>, a) => {
+    const byService = attendances.reduce((acc: Record<string, number>, a: any) => {
       const key = a.service?.name || 'Unknown';
       acc[key] = (acc[key] || 0) + 1;
       return acc;

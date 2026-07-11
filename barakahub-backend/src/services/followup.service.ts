@@ -102,7 +102,7 @@ export class FollowUpService {
       select: { id: true },
     });
 
-    const serviceIds = services.map((s) => s.id);
+    const serviceIds = services.map((s: any) => s.id);
     if (serviceIds.length === 0) return [];
 
     const presentUserIds = await prisma.attendance.findMany({
@@ -111,7 +111,7 @@ export class FollowUpService {
       distinct: ['userId'],
     });
 
-    const presentIds = presentUserIds.map((a) => a.userId);
+    const presentIds = presentUserIds.map((a: any) => a.userId);
     const absentees = await prisma.user.findMany({
       where: {
         id: { notIn: presentIds },

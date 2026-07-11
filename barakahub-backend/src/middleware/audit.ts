@@ -19,7 +19,7 @@ export function auditLog(action: string, table: string) {
             ipAddress: req.ip,
             userAgent: req.headers['user-agent'],
           },
-        }).catch((err) => console.error('Audit log error:', err));
+        }).catch((err: any) => console.error('Audit log error:', err));
       }
       return originalJson(body);
     };

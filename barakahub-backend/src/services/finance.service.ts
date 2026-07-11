@@ -134,8 +134,8 @@ export class FinanceService {
       orderBy: { transactionDate: 'desc' },
     });
 
-    const total = transactions.reduce((sum, t) => sum + t.amount, 0);
-    const byCategory = transactions.reduce((acc: Record<string, number>, t) => {
+    const total = transactions.reduce((sum: number, t: any) => sum + t.amount, 0);
+    const byCategory = transactions.reduce((acc: Record<string, number>, t: any) => {
       const cat = t.category.name;
       acc[cat] = (acc[cat] || 0) + t.amount;
       return acc;
@@ -186,14 +186,14 @@ export class FinanceService {
       include: { category: { select: { id: true, name: true } } },
     });
 
-    const total = transactions.reduce((sum, t) => sum + t.amount, 0);
-    const byCategory = transactions.reduce((acc: Record<string, number>, t) => {
+    const total = transactions.reduce((sum: number, t: any) => sum + t.amount, 0);
+    const byCategory = transactions.reduce((acc: Record<string, number>, t: any) => {
       const cat = t.category.name;
       acc[cat] = (acc[cat] || 0) + t.amount;
       return acc;
     }, {});
 
-    const byMethod = transactions.reduce((acc: Record<string, number>, t) => {
+    const byMethod = transactions.reduce((acc: Record<string, number>, t: any) => {
       const method = t.paymentMethod;
       acc[method] = (acc[method] || 0) + t.amount;
       return acc;
