@@ -13,7 +13,7 @@ services:
     runtime: node
     plan: free
     buildCommand: npm install && npx prisma generate && npm run build
-    startCommand: npx prisma migrate deploy && npx tsx prisma/seed.ts && npm start
+    startCommand: npx prisma migrate deploy && npm start
     healthCheckPath: /api/v1/health
     envVars:
       - key: NODE_ENV
