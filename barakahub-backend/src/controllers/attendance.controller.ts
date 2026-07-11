@@ -17,13 +17,36 @@ export class AttendanceController {
 
   async getServices(req: AuthRequest, res: Response) {
     try {
-      const { page, limit, upcoming } = req.query as Record<string, string>;
+      const { page, limit, upcoming, status, startDate, endDate } = req.query as Record<string, string>;
       const result = await attendanceService.getServices({
         page: page ? parseInt(page) : undefined,
         limit: limit ? parseInt(limit) : undefined,
         upcoming: upcoming === 'true',
+        status,
+        startDate,
+        endDate,
       });
       res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  async closeService(req: AuthRequest, res: Response) {
+    try {
+      const serviceId = parseInt(req.params.id as string);
+      const service = await attendanceService.closeService(serviceId, req.user!.id);
+      res.json(service);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  async reopenService(req: AuthRequest, res: Response) {
+    try {
+      const serviceId = parseInt(req.params.id as string);
+      const service = await attendanceService.reopenService(serviceId);
+      res.json(service);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -33,9 +56,20 @@ export class AttendanceController {
     try {
       const attendance = await attendanceService.checkIn({
         ...req.body,
-        userId: req.body.userId || req.user!.id,
+        checkedInBy: req.user!.id,
       });
       res.status(201).json(attendance);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  async undoCheckIn(req: AuthRequest, res: Response) {
+    try {
+      const serviceId = parseInt(req.params.serviceId as string);
+      const userId = parseInt(req.params.userId as string);
+      const result = await attendanceService.undoCheckIn(serviceId, userId);
+      res.json(result);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

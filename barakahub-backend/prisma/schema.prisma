@@ -67,6 +67,13 @@ enum CheckInMethod {
   qr_code
   manual
   ussd
+  visitor
+  bulk
+}
+
+enum ServiceStatus {
+  active
+  closed
 }
 
 enum TaskStatus {
@@ -153,7 +160,9 @@ model User {
   receivedMessages       Message[]          @relation("MessageRecipient")
   auditLogs              AuditLog[]
   announcements          Announcement[]     @relation("CreatedByUser")
-  servicesCreated        Service[]
+  servicesCreated        Service[]        @relation("CreatedBy")
+  servicesClosed         Service[]        @relation("ClosedBy")
+  checkedInAttendances   Attendance[]     @relation("CheckedInBy")
   groupsLed              ChurchGroup[]
   userSessions           UserSession[]
 
@@ -223,24 +232,31 @@ model GivingCategory {
 }
 
 model Service {
-  id          Int         @id @default(autoincrement())
-  uuid        String      @default(uuid())
-  name        String
-  serviceType ServiceType @default(sunday_service)
-  date        DateTime
-  location    String?
-  notes       String?
-  createdBy   Int
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  deletedAt   DateTime?
+  id               Int           @id @default(autoincrement())
+  uuid             String        @default(uuid())
+  name             String
+  serviceType      ServiceType   @default(sunday_service)
+  date             DateTime
+  location         String?
+  notes            String?
+  status           ServiceStatus @default(active)
+  totalAttendance  Int           @default(0)
+  totalOffering    Float         @default(0)
+  closedAt         DateTime?
+  closedBy         Int?
+  createdBy        Int
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  deletedAt        DateTime?
 
-  transactions Transaction[]
-  attendances  Attendance[]
-  createdByUser User         @relation(fields: [createdBy], references: [id])
+  transactions    Transaction[]
+  attendances     Attendance[]
+  createdByUser   User          @relation("CreatedBy", fields: [createdBy], references: [id])
+  closedByUser    User?         @relation("ClosedBy", fields: [closedBy], references: [id])
 
   @@index([date])
   @@index([serviceType])
+  @@index([status])
 }
 
 model Transaction {
@@ -310,6 +326,8 @@ model Attendance {
   serviceId     Int
   checkInTime   DateTime       @default(now())
   checkInMethod CheckInMethod
+  isFirstTime   Boolean        @default(false)
+  checkedInBy   Int?
   syncedAt      DateTime?
   isOfflineSync Boolean        @default(false)
   createdAt     DateTime       @default(now())
@@ -317,6 +335,7 @@ model Attendance {
 
   user          User           @relation(fields: [userId], references: [id])
   service       Service        @relation(fields: [serviceId], references: [id])
+  checkedInByUser User?        @relation("CheckedInBy", fields: [checkedInBy], references: [id])
 
   @@unique([userId, serviceId])
   @@index([serviceId])

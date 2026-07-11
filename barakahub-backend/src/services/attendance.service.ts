@@ -21,14 +21,25 @@ export class AttendanceService {
     });
   }
 
-  async getServices(params: { page?: number; limit?: number; upcoming?: boolean }) {
+  async getServices(params: {
+    page?: number;
+    limit?: number;
+    upcoming?: boolean;
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
     const page = params.page || 1;
     const limit = params.limit || 20;
     const skip = (page - 1) * limit;
 
     const where: any = { deletedAt: null };
-    if (params.upcoming) {
-      where.date = { gte: new Date() };
+    if (params.upcoming) where.date = { gte: new Date() };
+    if (params.status) where.status = params.status;
+    if (params.startDate || params.endDate) {
+      where.date = {};
+      if (params.startDate) where.date.gte = new Date(params.startDate);
+      if (params.endDate) where.date.lte = new Date(params.endDate);
     }
 
     const [services, total] = await Promise.all([
@@ -36,6 +47,7 @@ export class AttendanceService {
         where,
         include: {
           createdByUser: { select: { id: true, firstName: true, lastName: true } },
+          closedByUser: { select: { id: true, firstName: true, lastName: true } },
           _count: { select: { attendances: true } },
         },
         skip,
@@ -51,33 +63,100 @@ export class AttendanceService {
     };
   }
 
+  async closeService(serviceId: number, closedBy: number) {
+    const service = await prisma.service.findUnique({
+      where: { id: serviceId },
+      include: { _count: { select: { attendances: true } } },
+    });
+    if (!service) throw new Error('Service not found');
+    if (service.status === 'closed') throw new Error('Service already closed');
+
+    const transactions = await prisma.transaction.findMany({
+      where: {
+        serviceId,
+        status: 'completed',
+        reversalId: null,
+      },
+    });
+    const totalOffering = transactions.reduce((sum: number, t: any) => sum + t.amount, 0);
+
+    return prisma.service.update({
+      where: { id: serviceId },
+      data: {
+        status: 'closed',
+        closedAt: new Date(),
+        closedBy,
+        totalAttendance: service._count.attendances,
+        totalOffering,
+      },
+      include: {
+        createdByUser: { select: { id: true, firstName: true, lastName: true } },
+        closedByUser: { select: { id: true, firstName: true, lastName: true } },
+        _count: { select: { attendances: true } },
+      },
+    });
+  }
+
+  async reopenService(serviceId: number) {
+    const service = await prisma.service.findUnique({ where: { id: serviceId } });
+    if (!service) throw new Error('Service not found');
+    if (service.status !== 'closed') throw new Error('Service is not closed');
+
+    return prisma.service.update({
+      where: { id: serviceId },
+      data: { status: 'active', closedAt: null, closedBy: null },
+    });
+  }
+
   async checkIn(data: {
     userId: number;
     serviceId: number;
     checkInMethod: string;
     isOfflineSync?: boolean;
+    isFirstTime?: boolean;
+    checkedInBy?: number;
   }) {
+    const service = await prisma.service.findUnique({ where: { id: data.serviceId } });
+    if (!service) throw new Error('Service not found');
+    if (service.status === 'closed') throw new Error('Cannot check in — service is closed');
+
     const existing = await prisma.attendance.findUnique({
       where: { userId_serviceId: { userId: data.userId, serviceId: data.serviceId } },
     });
 
-    if (existing) {
-      throw new Error('Already checked in for this service');
-    }
+    if (existing) throw new Error('Already checked in for this service');
 
     return prisma.attendance.create({
       data: {
         userId: data.userId,
         serviceId: data.serviceId,
         checkInMethod: data.checkInMethod as any,
+        isFirstTime: data.isFirstTime || false,
+        checkedInBy: data.checkedInBy || null,
         isOfflineSync: data.isOfflineSync || false,
         syncedAt: data.isOfflineSync ? new Date() : null,
       },
       include: {
-        user: { select: { id: true, memberNo: true, firstName: true, lastName: true } },
-        service: { select: { id: true, name: true, serviceType: true } },
+        user: { select: { id: true, memberNo: true, firstName: true, lastName: true, phone: true, estate: true, photoUrl: true } },
+        service: { select: { id: true, name: true, serviceType: true, status: true } },
+        checkedInByUser: { select: { id: true, firstName: true, lastName: true } },
       },
     });
+  }
+
+  async undoCheckIn(serviceId: number, userId: number) {
+    const attendance = await prisma.attendance.findUnique({
+      where: { userId_serviceId: { userId, serviceId } },
+    });
+    if (!attendance) throw new Error('Attendance record not found');
+
+    const service = await prisma.service.findUnique({ where: { id: serviceId } });
+    if (service?.status === 'closed') throw new Error('Cannot undo check-in on a closed service');
+
+    await prisma.attendance.delete({
+      where: { userId_serviceId: { userId, serviceId } },
+    });
+    return { success: true };
   }
 
   async getServiceAttendance(serviceId: number) {
@@ -87,9 +166,10 @@ export class AttendanceService {
         user: {
           select: {
             id: true, memberNo: true, firstName: true, lastName: true,
-            phone: true, estate: true, photoUrl: true,
+            phone: true, estate: true, photoUrl: true, gender: true,
           },
         },
+        checkedInByUser: { select: { id: true, firstName: true, lastName: true } },
       },
       orderBy: { checkInTime: 'desc' },
     });
@@ -106,7 +186,7 @@ export class AttendanceService {
       })
     ).map((a: any) => a.userId);
 
-    const absentees = await prisma.user.findMany({
+    return prisma.user.findMany({
       where: {
         id: { notIn: presentUserIds },
         isActive: true,
@@ -114,11 +194,9 @@ export class AttendanceService {
       },
       select: {
         id: true, memberNo: true, firstName: true, lastName: true,
-        phone: true, estate: true,
+        phone: true, estate: true, photoUrl: true,
       },
     });
-
-    return absentees;
   }
 
   async syncOffline(data: Array<{ userId: number; serviceId: number; checkInTime: string; checkInMethod: string }>) {
@@ -144,9 +222,7 @@ export class AttendanceService {
     const end = new Date(params.endDate);
 
     const attendances = await prisma.attendance.findMany({
-      where: {
-        checkInTime: { gte: start, lte: end },
-      },
+      where: { checkInTime: { gte: start, lte: end } },
       include: {
         service: { select: { id: true, name: true, serviceType: true, date: true } },
         user: { select: { id: true, memberNo: true, firstName: true, lastName: true } },
@@ -160,11 +236,7 @@ export class AttendanceService {
       return acc;
     }, {});
 
-    return {
-      total: attendances.length,
-      byService,
-      records: attendances,
-    };
+    return { total: attendances.length, byService, records: attendances };
   }
 }
 
