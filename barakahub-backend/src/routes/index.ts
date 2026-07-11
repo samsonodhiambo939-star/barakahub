@@ -27,8 +27,12 @@ router.get('/debug/db', async (_req, res) => {
   }
 });
 
-router.post('/debug/echo', (req, res) => {
-  res.json({ body: req.body, headers: req.headers, hasJsonParser: typeof req.body === 'object' });
+router.all('/debug/echo', (req, res) => {
+  res.json({ method: req.method, body: req.body, contentType: req.headers['content-type'], hasJsonParser: typeof req.body === 'object' });
+});
+
+router.get('/debug/error', (req, res) => {
+  throw new Error('test error from handler');
 });
 
 router.get('/debug/users', async (_req, res) => {
