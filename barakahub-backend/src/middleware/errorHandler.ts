@@ -13,7 +13,7 @@ export class AppError extends Error {
 }
 
 export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction) {
-  console.error('ERROR HANDLER REACHED:', err.message, err.stack?.split('\n')[1]?.trim());
+  console.error('ERROR HANDLER REACHED:', err.message);
 
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({
@@ -22,6 +22,6 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
   }
 
   return res.status(500).json({
-    error: 'Internal server error',
+    error: err.message || 'Internal server error',
   });
 }

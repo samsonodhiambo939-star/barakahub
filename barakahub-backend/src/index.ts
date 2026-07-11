@@ -9,6 +9,10 @@ import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
 
+// Body parsing (must be before rate limiter)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
 // Security
 app.use(helmet());
 app.use(cors({
@@ -30,10 +34,6 @@ const stkLimiter = rateLimit({
   max: 1,
   message: { error: 'Please wait 30 seconds between STK Push requests' },
 });
-
-// Body parsing
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
 
 // Logging
 if (config.nodeEnv !== 'test') {
