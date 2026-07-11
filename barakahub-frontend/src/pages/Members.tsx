@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../lib/auth';
 import api from '../lib/api';
+import toast from 'react-hot-toast';
 import {
   Search, Plus, X, Filter, MoreVertical,
   Mail, Phone, MapPin, Calendar, User, Users,
@@ -492,10 +493,12 @@ function MemberForm({ member, onClose, onSuccess }: {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['members'] });
+      toast.success('Member created successfully');
       onSuccess();
     },
     onError: (err: any) => {
       setError(err.response?.data?.message || err.response?.data?.error || 'Failed to create member');
+      toast.error(err.response?.data?.error || 'Failed to create member');
     },
   });
 
@@ -507,10 +510,12 @@ function MemberForm({ member, onClose, onSuccess }: {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['members'] });
       queryClient.invalidateQueries({ queryKey: ['member', member!.id] });
+      toast.success('Member updated successfully');
       onSuccess();
     },
     onError: (err: any) => {
       setError(err.response?.data?.message || err.response?.data?.error || 'Failed to update member');
+      toast.error(err.response?.data?.error || 'Failed to update member');
     },
   });
 
@@ -748,6 +753,10 @@ export default function Members() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['members'] });
+      toast.success('Member deactivated');
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || 'Failed to deactivate');
     },
   });
 

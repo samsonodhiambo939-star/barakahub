@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../lib/auth';
 import api from '../lib/api';
+import toast from 'react-hot-toast';
 import { User, Phone, Mail, MapPin, Save, Lock } from 'lucide-react';
 
 export default function PortalProfile() {
@@ -16,38 +17,30 @@ export default function PortalProfile() {
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [pwdError, setPwdError] = useState('');
-  const [pwdSuccess, setPwdSuccess] = useState('');
 
-  const [saveError, setSaveError] = useState('');
-  const [saveSuccess, setSaveSuccess] = useState('');
 
   const updateMutation = useMutation({
     mutationFn: (data: any) => api.put('/portal/profile', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['portal'] });
-      setSaveSuccess('Profile updated');
-      setTimeout(() => setSaveSuccess(''), 3000);
+      toast.success('Profile updated');
       setEditMode(false);
     },
     onError: (err: any) => {
-      setSaveError(err?.response?.data?.error || 'Update failed');
-      setTimeout(() => setSaveError(''), 3000);
+      toast.error(err?.response?.data?.error || 'Update failed');
     },
   });
 
   const pwdMutation = useMutation({
     mutationFn: (data: any) => api.post('/portal/change-password', data),
     onSuccess: () => {
-      setPwdSuccess('Password changed');
+      toast.success('Password changed');
       setCurrentPassword('');
       setNewPassword('');
       setShowPwd(false);
-      setTimeout(() => setPwdSuccess(''), 3000);
     },
     onError: (err: any) => {
-      setPwdError(err?.response?.data?.error || 'Failed');
-      setTimeout(() => setPwdError(''), 3000);
+      toast.error(err?.response?.data?.error || 'Password change failed');
     },
   });
 
@@ -66,7 +59,7 @@ export default function PortalProfile() {
   const handlePwdChange = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentPassword || !newPassword) return;
-    if (newPassword.length < 6) { setPwdError('Password must be at least 6 characters'); return; }
+    if (newPassword.length < 6) { toast.error('Password must be at least 6 characters'); return; }
     pwdMutation.mutate({ currentPassword, newPassword });
   };
 
@@ -139,9 +132,6 @@ export default function PortalProfile() {
         </button>
       )}
 
-      {saveError && <p className="text-xs text-red-600 text-center">{saveError}</p>}
-      {saveSuccess && <p className="text-xs text-emerald-600 text-center">{saveSuccess}</p>}
-
       {/* Change Password */}
       <button onClick={() => setShowPwd(!showPwd)} className="w-full py-3 border rounded-xl text-sm font-medium text-gray-600 flex items-center justify-center gap-2">
         <Lock className="w-4 h-4" /> Change Password
@@ -154,8 +144,6 @@ export default function PortalProfile() {
           <button type="submit" disabled={pwdMutation.isPending} className="w-full py-2 bg-gray-800 text-white rounded-lg text-sm font-medium disabled:opacity-50">
             {pwdMutation.isPending ? 'Changing...' : 'Update Password'}
           </button>
-          {pwdError && <p className="text-xs text-red-600 text-center">{pwdError}</p>}
-          {pwdSuccess && <p className="text-xs text-emerald-600 text-center">{pwdSuccess}</p>}
         </form>
       )}
     </div>

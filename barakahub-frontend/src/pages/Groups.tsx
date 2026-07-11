@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../lib/auth';
 import api from '../lib/api';
+import toast from 'react-hot-toast';
 import {
   Users, Plus, X, Search, MoreVertical, ChevronLeft, ChevronRight,
   MapPin, Calendar, Clock, UserMinus,
@@ -156,27 +157,32 @@ export default function Groups() {
 
   const createMutation = useMutation({
     mutationFn: (data: any) => api.post('/groups', data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['groups'] }); setShowCreate(false); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['groups'] }); setShowCreate(false); toast.success('Group created'); },
+    onError: (err: any) => toast.error(err.response?.data?.error || 'Failed to create group'),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: any }) => api.put(`/groups/${id}`, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['groups'] }); setEditGroup(null); setSelectedGroup(null); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['groups'] }); setEditGroup(null); setSelectedGroup(null); toast.success('Group updated'); },
+    onError: (err: any) => toast.error(err.response?.data?.error || 'Failed to update group'),
   });
 
   const addMembersMutation = useMutation({
     mutationFn: ({ id, memberIds }: { id: number; memberIds: number[] }) => api.post(`/groups/${id}/members/bulk`, { memberIds }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['groups'] }); setSelectedMemberIds([]); setMemberResults([]); setMemberSearch(''); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['groups'] }); setSelectedMemberIds([]); setMemberResults([]); setMemberSearch(''); toast.success('Members added'); },
+    onError: (err: any) => toast.error(err.response?.data?.error || 'Failed to add members'),
   });
 
   const removeMemberMutation = useMutation({
     mutationFn: ({ groupId, userId }: { groupId: number; userId: number }) => api.delete(`/groups/${groupId}/members/${userId}`),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['groups'] }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['groups'] }); toast.success('Member removed'); },
+    onError: (err: any) => toast.error(err.response?.data?.error || 'Failed to remove member'),
   });
 
   const updateRoleMutation = useMutation({
     mutationFn: ({ groupId, userId, role }: { groupId: number; userId: number; role: string }) => api.put(`/groups/${groupId}/members/${userId}/role`, { role }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['groups'] }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['groups'] }); toast.success('Role updated'); },
+    onError: (err: any) => toast.error(err.response?.data?.error || 'Failed to update role'),
   });
 
   const groups = isGroupLeader ? (myGroupsQ.data || []) : (groupsQ.data?.data || []);

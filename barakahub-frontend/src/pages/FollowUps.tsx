@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../lib/auth';
 import api from '../lib/api';
+import toast from 'react-hot-toast';
 import {
   Users, UserPlus, CheckCircle, Clock, AlertTriangle,
   Phone, Check, X, Calendar, MessageSquare
@@ -122,9 +123,13 @@ function AssignModal({ memberName, memberId, trigger, onClose }: {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['followup-smart'] });
       queryClient.invalidateQueries({ queryKey: ['followup-tasks'] });
+      toast.success('Follow-up assigned');
       onClose();
     },
-    onError: (err: any) => setError(err.response?.data?.error || 'Failed to assign'),
+    onError: (err: any) => {
+      setError(err.response?.data?.error || 'Failed to assign');
+      toast.error(err.response?.data?.error || 'Failed to assign');
+    },
   });
 
   return (
@@ -185,9 +190,13 @@ function MarkDoneModal({ task, onClose }: {
       queryClient.invalidateQueries({ queryKey: ['followup-smart'] });
       queryClient.invalidateQueries({ queryKey: ['followup-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['followup-stats'] });
+      toast.success('Task completed');
       onClose();
     },
-    onError: (err: any) => setError(err.response?.data?.error || 'Failed to update'),
+    onError: (err: any) => {
+      setError(err.response?.data?.error || 'Failed to update');
+      toast.error(err.response?.data?.error || 'Failed to update');
+    },
   });
 
   return (

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { Church, Phone, Lock, AlertCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function PortalLogin() {
   const { login, user } = useAuth();
@@ -25,6 +26,7 @@ export default function PortalLogin() {
 
     try {
       await login(phone, password);
+      toast.success('Welcome to the Member Portal');
     } catch (err: any) {
       setError(err?.response?.data?.error || err?.message || 'Login failed');
     } finally {

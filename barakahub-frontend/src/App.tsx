@@ -14,6 +14,7 @@ import PortalLayout from './pages/PortalLayout';
 import PortalDashboard from './pages/PortalDashboard';
 import PortalGiving from './pages/PortalGiving';
 import PortalProfile from './pages/PortalProfile';
+import NotFound from './pages/NotFound';
 import type { ReactNode } from 'react';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -68,7 +69,8 @@ export default function App() {
             <Route path="followups" element={<FollowUps />} />
             <Route path="groups" element={<Groups />} />
           </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/404" element={<NotFound />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

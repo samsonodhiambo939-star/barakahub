@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useAuth } from '../lib/auth';
 import { useNavigate, Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 export default function Login() {
   const { login } = useAuth();
@@ -17,6 +18,7 @@ export default function Login() {
     setLoading(true);
     try {
       await login(phone, password);
+      toast.success('Welcome back!');
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Login failed');
@@ -29,6 +31,7 @@ export default function Login() {
     <div className="min-h-screen bg-gradient-to-br from-emerald-600 to-emerald-800 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
         <div className="text-center mb-8">
+          <img src="/logo.png" alt="BarakaHub" className="w-16 h-16 rounded-2xl mx-auto mb-3 object-cover shadow-lg" />
           <h1 className="text-3xl font-bold text-emerald-700">BarakaHub</h1>
           <p className="text-gray-500 mt-1">Church Management System</p>
         </div>

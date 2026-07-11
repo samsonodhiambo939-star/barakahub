@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../lib/auth';
 import api from '../lib/api';
+import toast from 'react-hot-toast';
 import {
   Search, Plus, X, ChevronLeft, ChevronRight,
   Church, Users, DollarSign, CheckCircle, XCircle,
@@ -126,9 +127,13 @@ function StartServiceDialog({ onClose }: { onClose: () => void }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['services'] });
+      toast.success('Service started');
       onClose();
     },
-    onError: (err: any) => setError(err.response?.data?.error || 'Failed to create service'),
+    onError: (err: any) => {
+      setError(err.response?.data?.error || 'Failed to create service');
+      toast.error(err.response?.data?.error || 'Failed to create service');
+    },
   });
 
   return (
@@ -190,9 +195,13 @@ function CloseServiceDialog({ service, onClose }: { service: ServiceRecord; onCl
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['services'] });
       queryClient.invalidateQueries({ queryKey: ['service-attendance', service.id] });
+      toast.success('Service closed');
       onClose();
     },
-    onError: (err: any) => setError(err.response?.data?.error || 'Failed to close service'),
+    onError: (err: any) => {
+      setError(err.response?.data?.error || 'Failed to close service');
+      toast.error(err.response?.data?.error || 'Failed to close service');
+    },
   });
 
   return (
@@ -262,9 +271,13 @@ function VisitorForm({ serviceId, onClose }: { serviceId: number; onClose: () =>
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['service-attendance', serviceId] });
       queryClient.invalidateQueries({ queryKey: ['services'] });
+      toast.success('Visitor added and checked in');
       onClose();
     },
-    onError: (err: any) => setError(err.response?.data?.error || err.message || 'Failed to add visitor'),
+    onError: (err: any) => {
+      setError(err.response?.data?.error || err.message || 'Failed to add visitor');
+      toast.error(err.response?.data?.error || 'Failed to add visitor');
+    },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -459,9 +472,11 @@ function CheckInScreen({ service, onBack, userRole }: {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['service-attendance', service.id] });
       queryClient.invalidateQueries({ queryKey: ['services'] });
+      toast.success('Checked in');
       setSearch('');
       searchRef.current?.focus();
     },
+    onError: (err: any) => toast.error(err.response?.data?.error || 'Check-in failed'),
   });
 
   const undoMutation = useMutation({
@@ -471,7 +486,9 @@ function CheckInScreen({ service, onBack, userRole }: {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['service-attendance', service.id] });
       queryClient.invalidateQueries({ queryKey: ['services'] });
+      toast.success('Check-in undone');
     },
+    onError: (err: any) => toast.error(err.response?.data?.error || 'Undo failed'),
   });
 
   const checkedInIds = new Set((attendance || []).map((a) => a.userId));

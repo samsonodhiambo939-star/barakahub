@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../lib/auth';
 import api from '../lib/api';
+import toast from 'react-hot-toast';
 import {
   Search, Plus, X, Filter, MoreVertical, ChevronLeft, ChevronRight,
   DollarSign, Menu, Download, FileText,
@@ -427,10 +428,12 @@ function VoidDialog({ transaction, onClose }: {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      toast.success('Transaction voided successfully');
       onClose();
     },
     onError: (err: any) => {
       setError(err.response?.data?.error || 'Failed to void transaction');
+      toast.error(err.response?.data?.error || 'Failed to void transaction');
     },
   });
 
@@ -566,10 +569,12 @@ function RecordOfferingForm({ onClose, onSuccess }: {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      toast.success('Offering recorded successfully');
       onSuccess();
     },
     onError: (err: any) => {
       setError(err.response?.data?.error || 'Failed to record transaction');
+      toast.error(err.response?.data?.error || 'Failed to record transaction');
     },
   });
 
