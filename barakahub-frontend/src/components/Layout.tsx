@@ -14,7 +14,7 @@ export default function Layout() {
   };
 
   const navItems = [
-    { to: '/dashboard', label: 'Dashboard', icon: Home, roles: ['member', 'usher', 'leader', 'pastor', 'admin'] },
+    { to: '/', label: 'Dashboard', icon: Home, roles: ['member', 'usher', 'leader', 'pastor', 'admin', 'secretary'] },
     { to: '/members', label: 'Members', icon: Users, roles: ['admin', 'pastor', 'leader'] },
     { to: '/finance', label: 'Finance', icon: DollarSign, roles: ['admin', 'pastor'] },
     { to: '/services', label: 'Services', icon: Church, roles: ['admin', 'pastor', 'usher', 'leader'] },
